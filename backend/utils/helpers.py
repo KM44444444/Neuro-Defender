@@ -1,10 +1,10 @@
 def classify_threat(score: float) -> str:
-    """Enterprise bands: SAFE 0–0.30, LOW 0.31–0.50, MEDIUM 0.51–0.75, HIGH 0.76–1.00"""
-    if score <= 0.30:
+    """Enterprise bands: SAFE 0.00-0.20, LOW 0.21-0.40, MEDIUM 0.41-0.68, HIGH 0.69-1.0"""
+    if score <= 0.20:
         return "SAFE"
-    if score <= 0.50:
+    elif score <= 0.40:
         return "LOW"
-    if score <= 0.75:
+    elif score <= 0.68:
         return "MEDIUM"
     return "HIGH"
 
@@ -21,9 +21,8 @@ def generate_image_summary_v3(scores: dict, threat: str) -> str:
         "frequency": "frequency-domain artifact (DCT/compression forensics)",
         "edge": "edge/texture inconsistency (clone-stamp or splice)",
         "noise": "anomalous noise pattern (injected or inconsistent)",
-        "squeeze": "JPEG quality-squeeze residual",
+        "compression": "JPEG quality-squeeze residual",
         "reconstruction": "reconstruction divergence (adversarial perturbation)",
-        "reconstruct": "high Laplacian energy (high-frequency anomaly)",
         "metadata": "metadata/EXIF anomaly",
     }
     top = sorted(

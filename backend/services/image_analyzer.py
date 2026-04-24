@@ -40,23 +40,33 @@ def compute_image_result(raw: bytes, filename: str = "") -> dict[str, Any]:
     frequency = _clip01(float(forensic.frequency_domain_score(arr_gray)))
     edge = _clip01(float(forensic.edge_texture_score(arr_gray)))
     lsb = _clip01(float(forensic.lsb_analysis_score(arr)))
-    squeeze = _clip01(float(forensic.feature_squeeze_score(pil_work)))
-    reconstruct = _clip01(float(forensic.reconstruction_score(arr)))
+    compression = _clip01(float(forensic.feature_squeeze_score(pil_work)))
+    reconstruction = _clip01(float(forensic.reconstruction_score(arr)))
     metadata = _clip01(float(forensic.metadata_score(pil_orig, raw)))
 
-    combined = round(
-        _clip01(
-            0.16 * pixel
-            + 0.14 * noise
-            + 0.15 * frequency
-            + 0.14 * edge
-            + 0.18 * lsb
-            + 0.11 * squeeze
-            + 0.08 * reconstruct
-            + 0.04 * metadata
-        ),
-        4,
+    base_score = (
+        0.14 * pixel
+        + 0.12 * noise
+        + 0.16 * frequency
+        + 0.12 * edge
+        + 0.20 * lsb
+        + 0.10 * compression
+        + 0.08 * metadata
+        + 0.08 * reconstruction
     )
+
+    ai_triggered = False
+    if (edge > 0.5 and frequency > 0.5 and metadata > 0.4) or (noise < 0.20 and frequency > 0.4) or (edge > 0.5 and frequency > 0.5 and noise > 0.5):
+        ai_triggered = True
+
+    if ai_triggered:
+        base_score += 0.08
+
+    active_suspicious = sum(1 for s in [pixel, noise, frequency, edge, lsb, compression, metadata, reconstruction] if s > 0.40)
+    if active_suspicious >= 3:
+        base_score += 0.05
+
+    combined = round(_clip01(base_score), 4)
 
     threat = classify_threat(combined)
     scores = {
@@ -65,10 +75,9 @@ def compute_image_result(raw: bytes, filename: str = "") -> dict[str, Any]:
         "frequency": frequency,
         "edge": edge,
         "lsb": lsb,
-        "squeeze": squeeze,
-        "reconstruct": reconstruct,
-        "reconstruction": reconstruct,
+        "compression": compression,
         "metadata": metadata,
+        "reconstruction": reconstruction,
         "combined": combined,
     }
     summary = generate_image_summary_v3(scores, threat)
@@ -86,6 +95,6 @@ def compute_image_result(raw: bytes, filename: str = "") -> dict[str, Any]:
             "mean": round(float(np.mean(arr_gray)), 2),
             "std": round(float(np.std(arr_gray)), 2),
         },
-        "is_adversarial": combined > 0.30,
-        "is_threat": combined >= 0.51,
+        "is_adversarial": combined > 0.20,
+        "is_threat": combined > 0.40,
     }

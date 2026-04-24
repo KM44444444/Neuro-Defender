@@ -13,7 +13,7 @@ def pixel_integrity_score(arr: np.ndarray) -> float:
     n = arr.shape[0] * arr.shape[1]
 
     mR, mG, mB = r.mean(), g.mean(), b.mean()
-    imbalance = min(1.0, (abs(mR - mG) + abs(mG - mB) + abs(mR - mB)) / 150.0)
+    imbalance = min(1.0, (abs(mR - mG) + abs(mG - mB) + abs(mR - mB)) / 100.0)
 
     hR, _ = np.histogram(r.flatten(), bins=256, range=(0, 255))
     hG, _ = np.histogram(g.flatten(), bins=256, range=(0, 255))
@@ -25,30 +25,29 @@ def pixel_integrity_score(arr: np.ndarray) -> float:
         )
         / (n * 2)
     )
-    spikiness = min(1.0, spikiness * 12.0)
+    spikiness = min(1.0, spikiness * 25.0)
 
     mx = np.maximum(r, np.maximum(g, b))
     mn = np.minimum(r, np.minimum(g, b))
     sat = np.where(mx > 0, (mx - mn) / (mx + 1e-9), 0.0)
-    sat_anomaly = min(1.0, max(0.0, (float(sat.mean()) - 0.55) * 2.5))
+    sat_anomaly = min(1.0, max(0.0, (float(sat.mean()) - 0.45) * 3.5))
 
     gray = r * 0.299 + g * 0.587 + b * 0.114
     std_g = float(gray.std()) or 1.0
     kurt = float(np.mean(((gray - gray.mean()) / std_g) ** 4)) - 3.0
-    kurt_score = min(1.0, abs(kurt) / 8.0)
+    kurt_score = min(1.0, abs(kurt) / 5.0)
 
     raw_score = min(
         1.0,
-        0.30 * imbalance + 0.35 * spikiness + 0.20 * sat_anomaly + 0.15 * kurt_score,
+        0.35 * imbalance + 0.35 * spikiness + 0.15 * sat_anomaly + 0.15 * kurt_score,
     )
 
+    # Apply minor penalty only if image is nearly solid color
     gray_std = float(gray.std())
-    if gray_std < 6.0:
-        raw_score *= 0.35
-    elif gray_std < 12.0:
-        raw_score *= 0.60
+    if gray_std < 3.0:
+        raw_score *= 0.50
 
-    return round(min(1.0, raw_score), 4)
+    return round(min(1.0, raw_score * 1.3), 4)
 
 
 # ─── 2. LSB BIT-LEVEL ANALYSIS ────────────────────────────────────────────────
@@ -75,12 +74,13 @@ def lsb_analysis_score(arr: np.ndarray) -> float:
     chi_sq = (
         sum((obs - expected) ** 2 / expected for obs in [p00, p01, p10, p11]) / total_pairs
     )
-    chi_score = 1.0 - min(1.0, chi_sq * 80.0)
+    # Make Chi-square test much more sensitive to deviations from randomness
+    chi_score = 1.0 - min(1.0, chi_sq * 20.0)
     chi_score = max(0.0, chi_score)
 
     lsb_ratio = float(lsb_r.mean())
     ratio_closeness = max(0.0, 0.5 - abs(lsb_ratio - 0.5))
-    ratio_score = min(1.0, ratio_closeness * 3.2)
+    ratio_score = min(1.0, ratio_closeness * 6.0)
 
     changes = np.where(np.diff(lsb_r) != 0)[0]
     if len(changes) == 0:
@@ -94,7 +94,7 @@ def lsb_analysis_score(arr: np.ndarray) -> float:
     max_entropy = float(np.log2(len(unique_runs) + 1))
     rle_score = min(1.0, rle_entropy / (max_entropy or 1.0))
 
-    score = min(1.0, 0.55 * chi_score + 0.30 * rle_score + 0.15 * ratio_score)
+    score = min(1.0, (0.45 * chi_score + 0.35 * rle_score + 0.20 * ratio_score) * 1.5)
     return round(score, 4)
 
 
@@ -116,7 +116,7 @@ def frequency_domain_score(arr_gray: np.ndarray) -> float:
     low_freq_energy = float((magnitude[dist <= radius_low] ** 2).sum())
 
     ac_ratio = (total_energy - low_freq_energy) / total_energy
-    ac_score = min(1.0, max(0.0, (ac_ratio - 0.40) / 0.30))
+    ac_score = min(1.0, max(0.0, (ac_ratio - 0.25) / 0.25))
 
     block = 8
     boundary_diffs = []
@@ -131,9 +131,10 @@ def frequency_domain_score(arr_gray: np.ndarray) -> float:
     avg_boundary = float(np.mean(boundary_diffs)) if boundary_diffs else 0.0
     avg_interior = float(np.mean(interior_diffs)) if interior_diffs else 1.0
     blocking_ratio = avg_boundary / (avg_interior + 1e-9)
-    blocking_score = min(1.0, max(0.0, (blocking_ratio - 1.0) / 1.5))
+    blocking_score = min(1.0, max(0.0, (blocking_ratio - 1.0) / 0.8))
 
-    return round(min(1.0, 0.60 * ac_score + 0.40 * blocking_score), 4)
+    score = min(1.0, (0.50 * ac_score + 0.50 * blocking_score) * 1.4)
+    return round(score, 4)
 
 
 # ─── 4. EDGE / TEXTURE ───────────────────────────────────────────────────────
@@ -160,7 +161,7 @@ def edge_texture_score(arr_gray: np.ndarray) -> float:
         isolated = high * (neighborhood < 0.25)
     except Exception:
         isolated = high * 0.1
-    edge_score = min(1.0, float((isolated * mag).sum()) / (total_edge * 0.15))
+    edge_score = min(1.0, float((isolated * mag).sum()) / (total_edge * 0.05))
 
     h, w = arr_gray.shape
     patch = 16
@@ -170,11 +171,12 @@ def edge_texture_score(arr_gray: np.ndarray) -> float:
             stds.append(float(arr_gray[py : py + patch, px : px + patch].std()))
     if stds:
         std_arr = np.array(stds, dtype=np.float64)
-        texture_score = min(1.0, float(std_arr.var()) / 500.0)
+        texture_score = min(1.0, float(std_arr.var()) / 250.0)
     else:
         texture_score = 0.0
 
-    return round(min(1.0, 0.50 * edge_score + 0.50 * texture_score), 4)
+    score = min(1.0, (0.50 * edge_score + 0.50 * texture_score) * 1.5)
+    return round(score, 4)
 
 
 # ─── 5. NOISE FORENSICS ──────────────────────────────────────────────────────
@@ -192,8 +194,8 @@ def noise_forensics_score(arr: np.ndarray) -> float:
     residual = gray - blurred
     noise_std = float(residual.std())
 
-    injected_score = min(1.0, max(0.0, (noise_std - 12.0) / 25.0))
-    denoised_score = min(1.0, max(0.0, (1.2 - noise_std) / 1.2))
+    injected_score = min(1.0, max(0.0, (noise_std - 8.0) / 15.0))
+    denoised_score = min(1.0, max(0.0, (2.0 - noise_std) / 2.0))
 
     h, w = gray.shape
     patch = 16
@@ -208,14 +210,12 @@ def noise_forensics_score(arr: np.ndarray) -> float:
         pn_arr = np.array(patch_stds, dtype=np.float64)
         pn_mean = pn_arr.mean()
         pn_cov = float(pn_arr.std()) / (pn_mean + 1e-9)
-        inconsistency = min(1.0, pn_cov * 1.5)
+        inconsistency = min(1.0, pn_cov * 2.5)
     else:
         inconsistency = 0.0
 
-    return round(
-        min(1.0, 0.35 * injected_score + 0.25 * denoised_score + 0.40 * inconsistency),
-        4,
-    )
+    score = min(1.0, (0.35 * injected_score + 0.25 * denoised_score + 0.40 * inconsistency) * 1.4)
+    return round(score, 4)
 
 
 # ─── 6. JPEG QUALITY SQUEEZE (deterministic) ────────────────────────────────
@@ -244,8 +244,8 @@ def feature_squeeze_score(pil_rgb: Image.Image) -> float:
     a = np.asarray(pil_rgb, dtype=np.uint8).astype(np.float64)
     b = np.asarray(decoded, dtype=np.uint8).astype(np.float64)
     mad = float(np.mean(np.abs(a - b)))
-    score = min(1.0, mad / 18.0)
-    return round(score, 4)
+    score = min(1.0, mad / 10.0)
+    return round(min(1.0, score * 1.5), 4)
 
 
 # ─── 7. RECONSTRUCTION PROXY (Laplacian only, deterministic) ───────────────
@@ -260,8 +260,8 @@ def reconstruction_score(arr: np.ndarray) -> float:
     p = np.pad(gray, 1, mode="reflect")
     lap = -4 * gray + p[:-2, 1:-1] + p[2:, 1:-1] + p[1:-1, :-2] + p[1:-1, 2:]
     lap_variance = float(lap.var())
-    lap_score = min(1.0, max(0.0, (lap_variance - 180.0) / 2800.0))
-    return round(lap_score, 4)
+    lap_score = min(1.0, max(0.0, (lap_variance - 80.0) / 1000.0))
+    return round(min(1.0, lap_score * 1.4), 4)
 
 
 # ─── 8. METADATA ────────────────────────────────────────────────────────────
@@ -288,18 +288,36 @@ def metadata_score(pil_img: Image.Image, raw: bytes) -> float:
             "facetune",
             "meitu",
             "retouch",
+            "canva",
+            "ai",
+            "midjourney",
+            "dall-e",
+            "stable diffusion",
+            "generative"
         ]
         if any(s in software for s in suspicious_sw):
+            score += 0.50
+        if any(s in software for s in ["ai", "midjourney", "dall", "canva", "diffusion", "generative"]):
             score += 0.30
         if exif_data.get(274) is None:
-            score += 0.10
+            score += 0.20
+    else:
+        score += 0.30 # No EXIF data at all often indicates stripping or social media / edited
+
+    # Check raw bytes for text traces
+    raw_lower = raw.lower()
+    if b"canva" in raw_lower or b"midjourney" in raw_lower or b"stable diffusion" in raw_lower or b"photoshop" in raw_lower or b"dall" in raw_lower:
+        score += 0.40
+
+    if b"icc_profile" not in raw_lower:
+        score += 0.15 # Often stripped by re-encoding
 
     w, h = pil_img.size
     if w % 64 == 0 and h % 64 == 0 and min(w, h) >= 1024:
-        score += 0.05
+        score += 0.10 # AI generated often exact multiples
     ratio = w / max(h, 1)
     common_ratios = [1.0, 4 / 3, 3 / 2, 16 / 9, 2.0, 3 / 4, 9 / 16]
     if any(abs(ratio - r) < 0.001 for r in common_ratios) and max(w, h) > 2000:
-        score += 0.05
+        score += 0.10
 
     return round(min(1.0, score), 4)
