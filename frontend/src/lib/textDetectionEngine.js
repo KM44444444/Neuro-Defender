@@ -6,6 +6,11 @@
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
+// safety check
+if (!BACKEND_URL) {
+  console.error("❌ BACKEND_URL missing! Check Vercel ENV");
+}
+
 // ─── Unicode / Invisible Character Detection ──────────────────────────────────
 
 const ZERO_WIDTH_CHARS = [
@@ -263,12 +268,35 @@ function localTextDetect(text) {
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export async function detectTextAdversarial(text) {
-  const url = BACKEND_URL || "http://localhost:8000";
-  const res = await fetch(`${url}/api/v1/text-detect`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
-  });
-  if (!res.ok) throw new Error(`Backend error: ${res.status}`);
-  return res.json();
+  try {
+    if (!BACKEND_URL) {
+      throw new Error("Backend URL not configured");
+    }
+
+    const res = await fetch(`${BACKEND_URL}/api/v1/text-detect`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ text }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Backend error: ${res.status}`);
+    }
+
+    return await res.json();
+  } catch (err) {
+    console.error("❌ TEXT API FAILED:", err);
+
+    // fallback (VERY IMPORTANT)
+    return {
+      type: "text",
+      is_adversarial: false,
+      confidence: 0,
+      threat_level: "LOW",
+      summary: "Backend not responding",
+      scores: {},
+    };
+  }
 }

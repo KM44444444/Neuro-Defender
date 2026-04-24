@@ -600,27 +600,46 @@ function localDetect(image) {
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 export async function detectAdversarial(image, originalFile = null) {
-  const url = BACKEND_URL || "http://localhost:8000";
-  const form = new FormData();
+  try {
+    if (!BACKEND_URL) {
+      throw new Error("Backend URL not configured");
+    }
 
-  // Prefer original bytes for forensic integrity (LSB/noise/metadata).
-  if (originalFile instanceof File) {
-    form.append("image", originalFile, originalFile.name || "upload-image");
-  } else {
-    // Fallback when only an HTMLImageElement is available.
-    const canvas = document.createElement("canvas");
-    canvas.width = image.naturalWidth || 1;
-    canvas.height = image.naturalHeight || 1;
-    canvas.getContext("2d").drawImage(image, 0, 0);
-    const blob = await new Promise((res) => canvas.toBlob(res, "image/png"));
-    form.append("image", blob, "image.png");
+    const form = new FormData();
+
+    if (originalFile instanceof File) {
+      form.append("image", originalFile);
+    } else {
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth || 1;
+      canvas.height = image.naturalHeight || 1;
+      canvas.getContext("2d").drawImage(image, 0, 0);
+      const blob = await new Promise((res) => canvas.toBlob(res, "image/png"));
+      form.append("image", blob);
+    }
+
+    const res = await fetch(`${BACKEND_URL}/api/v1/detect`, {
+      method: "POST",
+      body: form,
+    });
+
+    if (!res.ok) {
+      throw new Error(`Backend error: ${res.status}`);
+    }
+
+    return await res.json();
+  } catch (err) {
+    console.error("❌ IMAGE API FAILED:", err);
+
+    return {
+      type: "image",
+      is_adversarial: false,
+      confidence: 0,
+      threat_level: "LOW",
+      summary: "Backend not responding",
+      scores: {},
+    };
   }
-
-  const res = await fetch(`${url}/api/v1/detect`, { method: "POST", body: form });
-  if (!res.ok) throw new Error(`Backend error: ${res.status}`);
-  const json = await res.json();
-  json.stats = json.stats || {};
-  return json;
 }
 
 /**
