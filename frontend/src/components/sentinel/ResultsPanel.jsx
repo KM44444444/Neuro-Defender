@@ -40,13 +40,13 @@ export default function ResultsPanel({ results }) {
           <ScoreCard label="Metadata"      value={results.scores?.metadata       ?? 0}                               color="#38bdf8" delay={0.45} />
         </div>
 
-        {results.meta?.sha256 && (
+        {results.sha256 && (
           <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2">
             <p className="text-[10px] font-mono text-muted-foreground/70 tracking-wide uppercase">
               File fingerprint (sha256)
             </p>
             <p className="text-[11px] font-mono text-foreground/80 break-all">
-              {results.meta.sha256}
+              {results.sha256}
             </p>
           </div>
         )}
