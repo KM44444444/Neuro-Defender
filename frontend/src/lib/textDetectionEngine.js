@@ -1,9 +1,3 @@
-/**
- * NeuroDefender — Text Adversarial Detection Engine v2.0
- * Detects: zero-width chars, homoglyphs, unicode manipulation, hidden payloads,
- * invisible characters, obfuscated text, suspicious URLs, encoded content.
- */
-
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://neuro-defender.onrender.com";
 
 // safety check
@@ -11,7 +5,7 @@ if (!BACKEND_URL) {
   console.error("❌ BACKEND_URL missing! Check Vercel ENV");
 }
 
-// ─── Unicode / Invisible Character Detection ──────────────────────────────────
+// Unicode / Invisible Character Detection
 
 const ZERO_WIDTH_CHARS = [
   '\u200B', '\u200C', '\u200D', '\u200E', '\u200F', // zero-width space, joiners, marks
@@ -50,7 +44,7 @@ const SCRIPT_PATTERNS = [
   /document\./i, /window\./i, /alert\s*\(/i, /fetch\s*\(/i,
 ];
 
-// ─── Shannon Entropy ──────────────────────────────────────────────────────────
+// Shannon Entropy
 
 function textEntropy(text) {
   if (!text.length) return 0;
@@ -63,7 +57,7 @@ function textEntropy(text) {
   }, 0);
 }
 
-// ─── Zero-Width / Invisible Character Score ───────────────────────────────────
+// Zero-Width / Invisible Character Score
 
 function invisibleCharScore(text) {
   let count = 0;
@@ -78,7 +72,7 @@ function invisibleCharScore(text) {
   return Math.min(1, count / Math.max(1, text.length * 0.01) * 0.8 + (count > 0 ? 0.4 : 0));
 }
 
-// ─── Homoglyph Attack Score ───────────────────────────────────────────────────
+// Homoglyph Attack Score
 
 function homoglyphScore(text) {
   let hits = 0;
@@ -89,7 +83,7 @@ function homoglyphScore(text) {
   return Math.min(1, ratio * 4);
 }
 
-// ─── Obfuscation / Character Anomaly Score ────────────────────────────────────
+// Obfuscation / Character Anomaly Score
 
 function anomalyScore(text) {
   if (!text.length) return 0;
@@ -119,17 +113,16 @@ function anomalyScore(text) {
   return Math.min(1, raw * lengthFactor);
 }
 
-// ─── Phishing / Suspicious URL Score ─────────────────────────────────────────
+// Phishing / Suspicious URL Score
 
 function suspiciousUrlScore(text) {
   const urls = text.match(URL_PATTERN) || [];
   if (urls.length === 0) return 0;
-  // Any URL is mildly suspicious; suspicious TLD or multiple URLs = higher score
   const suspiciousTldCount = urls.filter(u => /\.(ru|cn|tk|ml|ga|cf|gq|xyz|top|click|pw|cc)/i.test(u)).length;
   return Math.min(1, 0.3 * urls.length + 0.5 * suspiciousTldCount);
 }
 
-// ─── Encoded Payload Score (base64, hex, script) ──────────────────────────────
+// Encoded Payload Score (base64, hex, script)
 
 function encodedPayloadScore(text) {
   let score = 0;
@@ -143,10 +136,9 @@ function encodedPayloadScore(text) {
   return Math.min(1, score);
 }
 
-// ─── Unicode Script Mixing Score ──────────────────────────────────────────────
+// Unicode Script Mixing Score
 
 function unicodeMixingScore(text) {
-  // Detect mixing of different Unicode script blocks in close proximity
   let transitions = 0;
   let prevBlock = null;
   const getBlock = (cp) => {
@@ -169,7 +161,7 @@ function unicodeMixingScore(text) {
   return Math.min(1, transitions / Math.max(1, text.length / 10) * 0.8);
 }
 
-// ─── Model Confidence (entropy-based) ─────────────────────────────────────────
+// Model Confidence (entropy-based)
 
 function normalizeText(text) {
   return text.toLowerCase().replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
@@ -191,7 +183,7 @@ function perturbationScore(text) {
   return Math.min(1, Math.abs(origConf - cleanConf));
 }
 
-// ─── Threat Classifier ────────────────────────────────────────────────────────
+// Threat Classifier
 
 function classifyThreat(score) {
   if (score > 0.55) return "HIGH";
@@ -217,7 +209,7 @@ function generateSummary(scores, threatLevel, text) {
     : `Suspicious text patterns: ${findings.join(", ")}.`;
 }
 
-// ─── Core Local Detection ─────────────────────────────────────────────────────
+// Core Local Detection
 
 function localTextDetect(text) {
   if (!text || !text.trim()) {
@@ -240,7 +232,6 @@ function localTextDetect(text) {
   const encoded    = parseFloat(encodedPayloadScore(input).toFixed(4));
   const url        = parseFloat(suspiciousUrlScore(input).toFixed(4));
 
-  // Weighted ensemble — invisible chars, homoglyphs, encoded payloads get high weight
   const combined = parseFloat(Math.min(1, (
     0.12 * conf +
     0.08 * perturbation +
@@ -265,7 +256,7 @@ function localTextDetect(text) {
   };
 }
 
-// ─── Public API ───────────────────────────────────────────────────────────────
+// Public API
 
 export async function detectTextAdversarial(text) {
   try {
