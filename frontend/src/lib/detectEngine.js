@@ -50,7 +50,7 @@
  * Thresholds: SAFE ≤0.20, LOW ≤0.40, MEDIUM ≤0.65, HIGH >0.65
  */
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://neuro-defender.onrender.com";
 
 // ─── DCT helpers ──────────────────────────────────────────────────────────────
 // Compute 1-D DCT-II of length-8 array (exact formula, no approximation)

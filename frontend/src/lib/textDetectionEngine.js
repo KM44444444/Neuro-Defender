@@ -4,7 +4,7 @@
  * invisible characters, obfuscated text, suspicious URLs, encoded content.
  */
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://neuro-defender.onrender.com";
 
 // safety check
 if (!BACKEND_URL) {
