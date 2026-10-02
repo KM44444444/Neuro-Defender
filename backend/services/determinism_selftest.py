@@ -31,7 +31,6 @@ def run_five_run_identity_test() -> None:
                 "Image forensics must be bitwise-repeatable."
             )
 
-    # Float sanity: combined stable to 4 decimals
     s0 = outs[0]["score"]
     if any(abs(o["score"] - s0) > _TOLERANCE for o in outs):
         raise RuntimeError("Determinism self-test failed: score drift exceeds tolerance.")

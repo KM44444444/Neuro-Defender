@@ -1,7 +1,6 @@
 import re
 import math
 
-# ─── Text Analysis Helpers ────────────────────────────────────────────────────
 
 ZERO_WIDTH_CODEPOINTS = {
     0x200B, 0x200C, 0x200D, 0x200E, 0x200F,

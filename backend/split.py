@@ -88,7 +88,6 @@ with open('routes/api.py', 'w') as f:
         "MAX_UPLOAD_BYTES = 20 * 1024 * 1024\n\n"
     ])
     
-    # We will grab the endpoints from the original file, but we need to replace @app with @router.
     ep_img = get_section('# ─── Image Endpoint', '# ─── Text Analysis Helpers')
     ep_img = [line.replace('@app', '@router') for line in ep_img]
     f.writelines(ep_img)
@@ -102,7 +101,6 @@ with open('routes/api.py', 'w') as f:
     ep_health = [line.replace('@app', '@router') for line in ep_health]
     f.writelines(ep_health)
 
-# Now creating the new main.py
 with open('main_new.py', 'w') as f:
     f.writelines([
         "import time\n",

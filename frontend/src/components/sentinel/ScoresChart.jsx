@@ -20,7 +20,6 @@ const COLORS = ["#22d3ee", "#a855f7", "#34d399", "#facc15"];
 export default function ScoresChart({ scores }) {
   if (!scores) return null;
 
-  // Support both old field names (v2) and new forensic names (v3)
   const g = (key, fallback) => scores[key] ?? scores[fallback] ?? 0;
 
   const barData = [

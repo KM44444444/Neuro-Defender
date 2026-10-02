@@ -8,7 +8,6 @@ def classify_threat(score: float) -> str:
         return "MEDIUM"
     return "HIGH"
 
-# ─── Image Summary ────────────────────────────────────────────────────────────
 
 def generate_image_summary_v3(scores: dict, threat: str) -> str:
     if threat == "SAFE":

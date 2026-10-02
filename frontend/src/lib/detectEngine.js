@@ -1,6 +1,5 @@
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://neuro-defender.onrender.com";
 
-// DCT helpers
 function dct8(a) {
   const N = 8;
   const out = new Float64Array(N);
@@ -14,7 +13,6 @@ function dct8(a) {
   return out;
 }
 
-// 2-D 8×8 DCT via separable row/col 1-D DCTs
 function dct8x8(block) {
   const tmp = [];
   for (let r = 0; r < 8; r++) tmp.push(dct8(block.slice(r * 8, r * 8 + 8)));
@@ -28,7 +26,6 @@ function dct8x8(block) {
   return out;
 }
 
-// 1. PIXEL INTEGRITY
 function pixelIntegrityScore(data, len) {
   const histR = new Int32Array(256);
   const histG = new Int32Array(256);
@@ -67,9 +64,7 @@ function pixelIntegrityScore(data, len) {
   return { score: parseFloat(Math.min(1, score).toFixed(4)), mean: meanGray, std: stdGray };
 }
 
-// 2. LSB ANALYSIS (Chi-square steganography test)
 function lsbAnalysisScore(data, len) {
-  // This is the standard RS / chi-square steganography proxy
   const pairs = [0, 0, 0, 0]; // 00, 01, 10, 11
   let runLen = 1;
   const runs = [];
@@ -118,7 +113,6 @@ function lsbAnalysisScore(data, len) {
   return parseFloat(Math.min(1, 0.40 * chiScore + 0.35 * rleScore + 0.25 * ratioScore).toFixed(4));
 }
 
-// 3. FREQUENCY DOMAIN (Real 8×8 DCT)
 function frequencyDomainScore(data, w, h) {
   const bs = 8;
   let acEnergySum = 0, blockCount = 0;
@@ -127,7 +121,6 @@ function frequencyDomainScore(data, w, h) {
 
   for (let by = 0; by + bs <= h; by += bs) {
     for (let bx = 0; bx + bs <= w; bx += bs) {
-      // Fill block with grayscale values (mean-centered)
       for (let r = 0; r < bs; r++) {
         for (let c = 0; c < bs; c++) {
           const idx = ((by + r) * w + (bx + c)) * 4;
@@ -137,11 +130,9 @@ function frequencyDomainScore(data, w, h) {
 
       const dctCoefs = dct8x8(block);
 
-      // DC component (index 0,0)
       const dc = dctCoefs[0];
       dcVals.push(dc);
 
-      // AC energy = sum of squares of all non-DC coefficients
       let acEnergy = 0;
       for (let k = 1; k < 64; k++) acEnergy += dctCoefs[k] * dctCoefs[k];
       acEnergySum += acEnergy;
@@ -154,7 +145,6 @@ function frequencyDomainScore(data, w, h) {
   const avgAC = acEnergySum / blockCount;
   const acScore = Math.min(1, avgAC / 4000);
 
-  // Blocking boundary discontinuity (JPEG forensics)
   let boundaryDisc = 0, boundaryCount = 0;
   for (let by = bs; by < h - bs; by += bs) {
     for (let x = 0; x < w; x++) {
@@ -181,7 +171,6 @@ function frequencyDomainScore(data, w, h) {
   return parseFloat(Math.min(1, 0.55 * acScore + 0.45 * blockingScore).toFixed(4));
 }
 
-// 4. EDGE / TEXTURE FORENSICS
 function edgeTextureScore(data, w, h) {
   const sobelMap = new Float32Array(w * h);
   let totalEdge = 0;
@@ -239,7 +228,6 @@ function edgeTextureScore(data, w, h) {
   return parseFloat(Math.min(1, 0.50 * edgeScore + 0.50 * textureScore).toFixed(4));
 }
 
-// 5. NOISE FORENSICS
 function noiseForensicsScore(data, w, h) {
   let residualSum = 0, residualSumSq = 0, count = 0;
 
@@ -295,7 +283,6 @@ function noiseForensicsScore(data, w, h) {
   return parseFloat(Math.min(1, 0.35 * injectedScore + 0.25 * denoisedScore + 0.40 * inconsistencyScore).toFixed(4));
 }
 
-// 6. FEATURE SQUEEZING
 function featureSqueezeScore(data, len) {
   let l1Diff = 0;
   let lInfDiff = 0;
@@ -304,12 +291,10 @@ function featureSqueezeScore(data, len) {
   for (let i = 0; i < data.length; i += 4) {
     for (let c = 0; c < 3; c++) {
       const v = data[i + c];
-      // 3-bit squeeze (32 levels)
       const sq3 = Math.round(v / 32) * 32;
       const d3 = Math.abs(v - sq3);
       l1Diff += d3;
       if (d3 > lInfDiff) lInfDiff = d3;
-      // 2-bit squeeze (64 levels) — more aggressive
       const sq2 = Math.round(v / 64) * 64;
       l1Diff2bit += Math.abs(v - sq2);
     }
@@ -323,7 +308,6 @@ function featureSqueezeScore(data, len) {
   return parseFloat(Math.min(1, 0.35 * l1Score + 0.40 * lInfScore + 0.25 * l1_2bit).toFixed(4));
 }
 
-// 7. LAPLACIAN ENERGY PROXY (Reconstruction)
 function reconstructionScore(data, w, h) {
   let laplacianSumSq = 0;
   let laplacianMean = 0;
@@ -352,7 +336,6 @@ function reconstructionScore(data, w, h) {
   return parseFloat(Math.min(1, lapMSE / 800).toFixed(4));
 }
 
-// 8. METADATA HEURISTICS (browser-side, EXIF not accessible)
 function metadataScore(image) {
   let score = 0;
   const w = image.naturalWidth, h = image.naturalHeight;
@@ -367,7 +350,6 @@ function metadataScore(image) {
   return parseFloat(Math.min(1, score).toFixed(4));
 }
 
-// Threat Classification
 function classifyThreat(score) {
   if (score > 0.65) return "HIGH";
   if (score > 0.40) return "MEDIUM";
@@ -375,7 +357,6 @@ function classifyThreat(score) {
   return "SAFE";
 }
 
-// Summary Generator
 function generateSummary(scores, threatLevel) {
   if (threatLevel === "SAFE") return "All 8 forensic modules pass. No manipulation signals detected.";
   if (threatLevel === "LOW")  return "Minor statistical anomalies. Likely standard processing (resize/compress). No strong manipulation evidence.";
@@ -402,7 +383,6 @@ function generateSummary(scores, threatLevel) {
     : `Suspicious forensic signals: ${topTwo.join(" + ")}.`;
 }
 
-// Core Local Detection
 function localDetect(image) {
   return new Promise((resolve) => {
     const canvas = document.createElement("canvas");
@@ -429,7 +409,6 @@ function localDetect(image) {
 
     const scores = { pixel: pixelResult.score, lsb, frequency, edge, noise, squeeze, reconstruction, metadata };
 
-    // Weighted ensemble (weights sum to 1.00)
     scores.combined = parseFloat(Math.min(1, (
       0.14 * scores.pixel        +  // histogram / channel stats
       0.22 * scores.lsb          +  // steganography / bit-level attack
@@ -455,7 +434,6 @@ function localDetect(image) {
   });
 }
 
-// Public API
 export async function detectAdversarial(image, originalFile = null) {
   try {
     if (!BACKEND_URL) {

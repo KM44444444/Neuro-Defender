@@ -25,7 +25,6 @@ def bootstrap_determinism(seed: int = _SEED) -> None:
             torch.cuda.manual_seed_all(seed)
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
-        # Strict mode can break unrelated ops; image v6+ avoids torch entirely.
         try:
             torch.use_deterministic_algorithms(True, warn_only=True)
         except TypeError:

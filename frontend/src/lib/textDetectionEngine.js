@@ -1,11 +1,9 @@
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://neuro-defender.onrender.com";
 
-// safety check
 if (!BACKEND_URL) {
   console.error("❌ BACKEND_URL missing! Check Vercel ENV");
 }
 
-// Unicode / Invisible Character Detection
 
 const ZERO_WIDTH_CHARS = [
   '\u200B', '\u200C', '\u200D', '\u200E', '\u200F', // zero-width space, joiners, marks
@@ -18,33 +16,24 @@ const ZERO_WIDTH_CHARS = [
 ];
 
 const HOMOGLYPH_MAP = {
-  // Cyrillic look-alikes for Latin chars
   'а':'a','е':'e','о':'o','р':'p','с':'c','х':'x','у':'y',
   'і':'i','ї':'i','ё':'e','ъ':'b','ь':'b',
-  // Greek look-alikes
   'α':'a','ε':'e','ο':'o','ρ':'p','τ':'t','υ':'u','χ':'x',
-  // Fullwidth chars
   'ａ':'a','ｂ':'b','ｃ':'c','ｄ':'d','ｅ':'e','ｆ':'f','ｇ':'g',
-  // Common leet-substitution symbols used in obfuscation
   '@':'a','3':'e','1':'i','0':'o','5':'s','$':'s','7':'t','!':'i',
 };
 
-// Suspicious URL patterns
 const URL_PATTERN = /https?:\/\/[^\s]+|www\.[^\s]+|\b\w+\.(ru|cn|tk|ml|ga|cf|gq|xyz|top|work|click|online|site|fun|pw|cc)\b/gi;
 
-// Base64-like encoded payload pattern
 const BASE64_PATTERN = /[A-Za-z0-9+/]{20,}={0,2}/g;
 
-// Hex encoding pattern
 const HEX_PATTERN = /(?:0x)?[0-9a-fA-F]{8,}/g;
 
-// Script injection patterns
 const SCRIPT_PATTERNS = [
   /<script/i, /javascript:/i, /on\w+\s*=/i, /eval\s*\(/i,
   /document\./i, /window\./i, /alert\s*\(/i, /fetch\s*\(/i,
 ];
 
-// Shannon Entropy
 
 function textEntropy(text) {
   if (!text.length) return 0;
@@ -57,22 +46,18 @@ function textEntropy(text) {
   }, 0);
 }
 
-// Zero-Width / Invisible Character Score
 
 function invisibleCharScore(text) {
   let count = 0;
   for (const ch of text) {
     if (ZERO_WIDTH_CHARS.includes(ch)) count++;
-    // General invisible Unicode ranges
     const cp = ch.codePointAt(0);
     if (cp >= 0x2000 && cp <= 0x206F) count++; // General Punctuation (many invisible)
     if (cp >= 0xE000 && cp <= 0xF8FF) count++; // Private Use Area
   }
-  // Even 1 zero-width char is suspicious; normalize
   return Math.min(1, count / Math.max(1, text.length * 0.01) * 0.8 + (count > 0 ? 0.4 : 0));
 }
 
-// Homoglyph Attack Score
 
 function homoglyphScore(text) {
   let hits = 0;
@@ -83,7 +68,6 @@ function homoglyphScore(text) {
   return Math.min(1, ratio * 4);
 }
 
-// Obfuscation / Character Anomaly Score
 
 function anomalyScore(text) {
   if (!text.length) return 0;
@@ -113,7 +97,6 @@ function anomalyScore(text) {
   return Math.min(1, raw * lengthFactor);
 }
 
-// Phishing / Suspicious URL Score
 
 function suspiciousUrlScore(text) {
   const urls = text.match(URL_PATTERN) || [];
@@ -122,7 +105,6 @@ function suspiciousUrlScore(text) {
   return Math.min(1, 0.3 * urls.length + 0.5 * suspiciousTldCount);
 }
 
-// Encoded Payload Score (base64, hex, script)
 
 function encodedPayloadScore(text) {
   let score = 0;
@@ -136,7 +118,6 @@ function encodedPayloadScore(text) {
   return Math.min(1, score);
 }
 
-// Unicode Script Mixing Score
 
 function unicodeMixingScore(text) {
   let transitions = 0;
@@ -161,7 +142,6 @@ function unicodeMixingScore(text) {
   return Math.min(1, transitions / Math.max(1, text.length / 10) * 0.8);
 }
 
-// Model Confidence (entropy-based)
 
 function normalizeText(text) {
   return text.toLowerCase().replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
@@ -183,7 +163,6 @@ function perturbationScore(text) {
   return Math.min(1, Math.abs(origConf - cleanConf));
 }
 
-// Threat Classifier
 
 function classifyThreat(score) {
   if (score > 0.55) return "HIGH";
@@ -209,7 +188,6 @@ function generateSummary(scores, threatLevel, text) {
     : `Suspicious text patterns: ${findings.join(", ")}.`;
 }
 
-// Core Local Detection
 
 function localTextDetect(text) {
   if (!text || !text.trim()) {
@@ -256,7 +234,6 @@ function localTextDetect(text) {
   };
 }
 
-// Public API
 
 export async function detectTextAdversarial(text) {
   try {
@@ -280,7 +257,6 @@ export async function detectTextAdversarial(text) {
   } catch (err) {
     console.error("❌ TEXT API FAILED:", err);
 
-    // fallback (VERY IMPORTANT)
     return {
       type: "text",
       is_adversarial: false,

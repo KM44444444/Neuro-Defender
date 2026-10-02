@@ -49,7 +49,6 @@ export default function Dashboard() {
     setIsAnalyzing(true);
     addLog("info", "Starting multi-method adversarial detection...");
 
-    // Simulate processing delay for UX
     await new Promise((r) => setTimeout(r, 1200));
 
     try {

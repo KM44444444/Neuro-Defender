@@ -2,7 +2,6 @@ import io
 import numpy as np
 from PIL import Image
 
-# ─── 1. PIXEL INTEGRITY ───────────────────────────────────────────────────────
 
 
 def pixel_integrity_score(arr: np.ndarray) -> float:
@@ -42,7 +41,6 @@ def pixel_integrity_score(arr: np.ndarray) -> float:
         0.35 * imbalance + 0.35 * spikiness + 0.15 * sat_anomaly + 0.15 * kurt_score,
     )
 
-    # Apply minor penalty only if image is nearly solid color
     gray_std = float(gray.std())
     if gray_std < 3.0:
         raw_score *= 0.50
@@ -50,7 +48,6 @@ def pixel_integrity_score(arr: np.ndarray) -> float:
     return round(min(1.0, raw_score * 1.3), 4)
 
 
-# ─── 2. LSB BIT-LEVEL ANALYSIS ────────────────────────────────────────────────
 
 
 def lsb_analysis_score(arr: np.ndarray) -> float:
@@ -74,7 +71,6 @@ def lsb_analysis_score(arr: np.ndarray) -> float:
     chi_sq = (
         sum((obs - expected) ** 2 / expected for obs in [p00, p01, p10, p11]) / total_pairs
     )
-    # Make Chi-square test much more sensitive to deviations from randomness
     chi_score = 1.0 - min(1.0, chi_sq * 20.0)
     chi_score = max(0.0, chi_score)
 
@@ -98,7 +94,6 @@ def lsb_analysis_score(arr: np.ndarray) -> float:
     return round(score, 4)
 
 
-# ─── 3. FREQUENCY DOMAIN (FFT2 + blocking) ──────────────────────────────────
 
 
 def frequency_domain_score(arr_gray: np.ndarray) -> float:
@@ -137,7 +132,6 @@ def frequency_domain_score(arr_gray: np.ndarray) -> float:
     return round(score, 4)
 
 
-# ─── 4. EDGE / TEXTURE ───────────────────────────────────────────────────────
 
 
 def edge_texture_score(arr_gray: np.ndarray) -> float:
@@ -179,7 +173,6 @@ def edge_texture_score(arr_gray: np.ndarray) -> float:
     return round(score, 4)
 
 
-# ─── 5. NOISE FORENSICS ──────────────────────────────────────────────────────
 
 
 def noise_forensics_score(arr: np.ndarray) -> float:
@@ -218,7 +211,6 @@ def noise_forensics_score(arr: np.ndarray) -> float:
     return round(score, 4)
 
 
-# ─── 6. JPEG QUALITY SQUEEZE (deterministic) ────────────────────────────────
 
 JPEG_SQUEEZE_QUALITY = 85
 
@@ -248,7 +240,6 @@ def feature_squeeze_score(pil_rgb: Image.Image) -> float:
     return round(min(1.0, score * 1.5), 4)
 
 
-# ─── 7. RECONSTRUCTION PROXY (Laplacian only, deterministic) ───────────────
 
 
 def reconstruction_score(arr: np.ndarray) -> float:
@@ -264,7 +255,6 @@ def reconstruction_score(arr: np.ndarray) -> float:
     return round(min(1.0, lap_score * 1.4), 4)
 
 
-# ─── 8. METADATA ────────────────────────────────────────────────────────────
 
 
 def metadata_score(pil_img: Image.Image, raw: bytes) -> float:
@@ -304,7 +294,6 @@ def metadata_score(pil_img: Image.Image, raw: bytes) -> float:
     else:
         score += 0.30 # No EXIF data at all often indicates stripping or social media / edited
 
-    # Check raw bytes for text traces
     raw_lower = raw.lower()
     if b"canva" in raw_lower or b"midjourney" in raw_lower or b"stable diffusion" in raw_lower or b"photoshop" in raw_lower or b"dall" in raw_lower:
         score += 0.40

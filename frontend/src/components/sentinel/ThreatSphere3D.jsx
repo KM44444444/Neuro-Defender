@@ -57,7 +57,6 @@ function Sphere({ threatLevel }) {
     }
   });
 
-  // Build a slightly distorted sphere geometry based on threat
   const geometry = useMemo(() => {
     const geo = new THREE.SphereGeometry(1, 64, 64);
     const pos = geo.attributes.position;

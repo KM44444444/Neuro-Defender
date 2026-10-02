@@ -79,7 +79,6 @@ async def timing_middleware(request: Request, call_next):
     try:
         response = await call_next(request)
     except Exception as e:
-        # Avoid leaking internals; still return a consistent JSON error.
         return JSONResponse(
             status_code=500,
             content={"error": {"type": "internal", "message": "Internal server error."}},
